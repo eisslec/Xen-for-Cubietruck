@@ -1,0 +1,25 @@
+#!/bin/bash
+#Author: Christian Eissler
+#Last change: 06.06.14
+
+#Skript to create a XEN-Demonstation.
+#Skript building XEN, creating a compatible dom0 kernel which can also be used for domU
+
+#Read the configuration
+echo Read configuration
+
+#TODO
+
+echo ------------------------Installing development tools--------------------------------
+
+sudo apt-get install git  build-essential rsync gcc-arm-linux-gnueabihf libfdt-dev
+
+
+echo --------------------Cloning the repositories and build the sources-------------------
+
+source ./scripts/build_sources.sh
+
+
+echo ------------------------Download Rootfs and Deploy files------------------------------------
+
+source ./scripts/create_rootfs.sh

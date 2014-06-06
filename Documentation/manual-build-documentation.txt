@@ -1,0 +1,460 @@
+
+XEN on ARM for Cubietruck
+
+Manual build description
+
+Created by: Christian Eissler
+Last change: 05.06.2014
+Cross-Compile System:Ubuntu x86
+
+
+##########################################################################################################
+##########################################################################################################
+
+
+#Installing the required development tools:
+sudo apt-get install git  build-essential rsync gcc-arm-linux-gnueabihf libfdt-dev
+
+
+
+#Test your system environment and toolchain by building a working kernel for an existing distribution.
+#It is recommend to verify that everyting working correct (optional):
+
+#Bootloader:
+
+﻿#Download the Uboot repository (Currently no support for booting off the NAND)
+git clone https://github.com/linux-sunxi/u-boot-sunxi.git
+
+#Check if support for the BuildTarget is available(_FEL targets are for the USBBoot Uboot version):
+cd u-boot-sunxi
+grep sunxi boards.cfg | awk '{print $7}'
+
+#Build the Bootloader(TARGET = Cubietruck_config):
+make CROSS_COMPILE=arm-linux-gnueabihf- ${TARGET}
+make CROSS_COMPILE=arm-linux-gnueabihf- -j 4
+
+#Write the Bootloader to the SD card(In my case: SD_CARD=/dev/sdb):
+sudo dd if=spl/sunxi-spl.bin of=${SD_CARD} bs=1024 seek=8
+sudo dd if=u-boot.img of=${SD_CARD} bs=1024 seek=40
+
+
+
+#Create script.bin(optional)
+git clone git://github.com/linux-sunxi/sunxi-tools.git
+git clone git://github.com/linux-sunxi/sunxi-boards.git
+cd sunxi-tools
+make fex2bin
+
+
+#Find the fex file for your Target Board (It still lacks support for booting off the NAND).
+nano sunxi-boards/sys_config/a20/cubietruck.fex
+
+
+#Compiling th kernel:
+
+#Clone the kernel repository (Kernel 3.4 is not usable with XEN!!!)
+git clone -b sunxi-3.4 https://github.com/linux-sunxi/linux-sunxi.git
+
+
+
+#Configure the kernel build
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- sun7i_defconfig
+
+#Compile kernel
+make -j4 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- uImage modules dtbs
+
+#Create module tree
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=output modules_install
+
+#Test Kernel on a working distribution for Cubietruck.
+#Cubieez is recommend
+#Download link: http://www.cubieforums.com/index.php/topic,528.0.html
+
+#Writing the image on the sd card
+sudo dd if=${IMAGE_FILE} of=/dev/${DEVICE}
+
+#Replace the kernel and optional the modules of the distribution
+sudo cp linux-sunxi/arch/arm/boot/uImage /media/$BOOT_PARTITION/ 
+sudo rm -r /media/$FILESYSTEM_PARTITION/usr/lib/modules/*
+sudo cp linux-sunxi/output/lib/modules/3.4.XXX/ /media/$FILESYSTEM_PARTITION/usr/lib/modules
+
+
+######################################################################################
+######################################################################################
+#When everything works correct we can start building a bootloader, kernel and filesystem which is usable XEN
+
+#Create one ext4 partition on the sdcard with GParted
+
+#Building Bootloader:
+
+﻿#Download the Uboot Repository (Currently no support for booting off the NAND)
+git clone -b sunxi-next https://github.com/jwrdegoede/u-boot-sunxi.git
+
+#Check if support for your BuildTarget is available(_FEL are for USBBoot):
+cd u-boot-sunxi
+grep sunxi boards.cfg | awk '{print $7}'
+
+#Build the Bootloader(TARGET = Cubietruck):
+#For Booting with sdcard
+make TARGET CROSS_COMPILE=arm-linux-gnueabihf- -j4
+
+#Write the Bootloader to the SD card(In my case: $SD_CARD=/dev/sdb):
+sudo dd if=spl/sunxi-spl.bin of=${SD_CARD} bs=1024 seek=8
+sudo dd if=u-boot.img of=${SD_CARD} bs=1024 seek=40
+cd ..
+
+
+#Building XEN-Kernel(The same kernel should be usable for dom0 and domU)
+
+#Clone kernel repository(This is the only working kernel with XEN and MMC support!!!)
+git clone -b sunxi-devel https://github.com/linux-sunxi/linux-sunxi
+cd linux-sunxi
+
+#Add dom0 kernel configuration:
+nano arch/arm/configs/multi_v7_defconfig
+
+#Add :
+
+CONFIG_XEN_DOM0=y
+CONFIG_XEN=y
+CONFIG_IPV6=y
+CONFIG_NETFILTER=y
+CONFIG_NETFILTER_ADVANCED=y
+CONFIG_BRIDGE_NETFILTER=y
+CONFIG_STP=y
+CONFIG_BRIDGE=y
+CONFIG_SYS_HYPERVISOR=y
+CONFIG_XEN_BLKDEV_FRONTEND=y
+CONFIG_XEN_BLKDEV_BACKEND=y
+CONFIG_AHCI_SUNXI=y
+CONFIG_XEN_NETDEV_FRONTEND=y
+CONFIG_XEN_NETDEV_BACKEND=y
+CONFIG_INPUT_AXP20X_PEK=y
+CONFIG_INPUT_XEN_KBDDEV_FRONTEND=y
+CONFIG_HVC_DRIVER=y
+CONFIG_HVC_IRQ=y
+CONFIG_HVC_XEN=y
+CONFIG_HVC_XEN_FRONTEND=y
+CONFIG_MFD_AXP20X=y
+CONFIG_REGULATOR_AXP20X=y
+CONFIG_FB_SYS_FOPS=y
+CONFIG_FB_DEFERRED_IO=y
+CONFIG_XEN_FBDEV_FRONTEND=y
+CONFIG_MMC_SUNXI=y
+CONFIG_VIRT_DRIVERS=y
+CONFIG_XEN_BALLOON=y
+CONFIG_XEN_SCRUB_PAGES=y
+CONFIG_XEN_DEV_EVTCHN=y
+CONFIG_XEN_BACKEND=y
+CONFIG_XENFS=y
+CONFIG_XEN_COMPAT_XENFS=y
+CONFIG_XEN_SYS_HYPERVISOR=y
+CONFIG_XEN_XENBUS_FRONTEND=y
+CONFIG_XEN_GNTDEV=y
+CONFIG_XEN_GRANT_DEV_ALLOC=y
+CONFIG_SWIOTLB_XEN=y
+CONFIG_XEN_PRIVCMD=y
+ONFIG_PHY_SUN4I_USB
+CONFIG_HAS_IOPORT=y
+
+# LVM
+CONFIG_MD=y
+CONFIG_BLK_DEV_DM_BUILTIN=y
+CONFIG_BLK_DEV_DM=y
+CONFIG_DM_BUFIO=y
+CONFIG_DM_SNAPSHOT=y
+
+#Change Options
+CONFIG_ARM_APPENDED_DTB=n
+CONFIG_ARM_ATAG_DTB_COMPAT=n
+
+
+#Configure the kernel
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- multi_v7_defconfig
+
+#Compile kernel
+make -j4 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
+
+
+
+#Building Xen
+
+#Clone the xen repository(use a stabel version!!!)
+git clone -b stable-4.4 git://xenbits.xen.org/xen.git
+
+cd xen
+make dist-xen XEN_TARGET_ARCH=arm32 CROSS_COMPILE=arm-linux-gnueabihf- CONFIG_EARLY_PRINTK=sun7i
+cd ..
+
+
+
+#Various filesystems can be used for dom0 and domU
+
+#Tested with the linaro-saucy-developer filesystem
+wget https://snapshots.linaro.org/ubuntu/images/developer/latest/linaro-saucy-developer-20140414-653.tar.gz #(used)
+wget https://releases.linaro.org/13.04/ubuntu/quantal-images/nano/linaro-quantal-nano-20130422-342.tar.gz
+
+#Copy filesystem to the sdcard
+sudo tar xfvz ${FILESYSTEM_NAME}.tar.gz -C /media/${DEVICE_NAME}
+
+
+#Change configuration files in the filesystem
+nano /media/${PARTITION_NAME}/etc/fstab
+#Add:
+/dev/mmcblk0p1  / ext4   rw,relatime,data=ordered       0 1
+
+nano /media/${PARTITION_NAME}/etc/resolve.conf
+#Add:
+nameserver 8.8.8.8
+
+nano /media/${PARTITION_NAME}/etc/network/interfaces
+#Replace content with: 
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet manual
+  up ip link set eth0 up
+
+auto br0
+iface br0 inet dhcp
+  bridge_ports eth0
+
+#(optional)
+nano /media/${PARTITION_NAME}/etc/init/rc-sysinit.conf
+#Change:
+env DEFAULT_RUNLEVEL=1
+
+
+#Creating the Bootscript:
+
+mkdir build
+cd build
+nano boot.xen
+
+#Add:
+##############################Bootscript####################################################################################
+
+ # SUNXI Xen Boot Script
+
+  setenv bootargs "console=dtuart dtuart=/soc@01c00000/serial@01c28000 dom0_mem=128M" root=/dev/mmcblk0p1 rootwait panic=10 ${extra}
+
+   # Addresses suitable for 1GB system, adjust as appropriate for a 2GB system.
+   # Top of RAM:         0x80000000
+   # Xen relocate addr   0x7fe00000
+   # Adjusted for cubietruck!!! 0x7 -> 0xb
+   setenv kernel_addr_r  0xbf600000 # 8M
+   setenv ramdisk_addr_r 0xbee00000 # 8M
+   setenv fdt_addr       0xbec00000 # 2M
+   setenv xen_addr_r     0xbea00000 # 2M
+
+   setenv fdt_high      0xffffffff # Load fdt in place instead of relocating
+
+   #ext4load mmc 0 0x43000000 script.bin
+
+   # Load xen/xen to ${xen_addr_r}. e.g. tftp, fatload or ext2load to ${xen_addr_r}.
+   # see the following sections for details of booting from various devices.
+   ext4load mmc 0 ${xen_addr_r} /boot/xen
+
+   # Load appropriate .dtb file to ${fdt_addr} e.g. tftp, fatload or ext2load to ${fdt_addr}.
+   # see the following sections for details of booting from various devices.
+   ext4load mmc 0 ${fdt_addr} /boot/sun7i-a20-cubietruck.dtb
+
+   fdt addr ${fdt_addr} 0x40000
+
+   fdt resize
+
+   fdt chosen
+
+   fdt set /chosen \#address-cells <1>
+   fdt set /chosen \#size-cells <1>
+
+   # Load Linux arch/arm/boot/zImage to ${kernel_addr_r}. e.g. tftp, fatload or ext2load to ${kernel_addr_r}.
+   # see the following sections for details of booting from various devices.
+   ext4load mmc 0 ${kernel_addr_r} /boot/zImage
+
+   fdt mknod /chosen module@0
+   fdt set /chosen/module@0 compatible "xen,linux-zimage" "xen,multiboot-module"
+   fdt set /chosen/module@0 reg <${kernel_addr_r} 0x${filesize} >
+   fdt set /chosen/module@0 bootargs "console=hvc0 ro root=/dev/sda1 clk_ignore_unused"
+
+   bootz ${xen_addr_r} - ${fdt_addr}
+ 
+
+############################Bootscript end #######################################################################################
+
+#Compile the bootscript
+mkimage -A arm -T script -d boot.xen boot.scr
+
+
+#Adding init script to (init.sh)
+
+nano build/init.sh
+
+#Add:
+################### Begin #################################################
+#!/bin/sh
+#set -x
+mount -o remount,rw /
+mount -t proc none /proc
+mount -t sysfs none /sys
+#mkdir /run/lock
+#/etc/init.d/udev start
+#mount -t devtmpfs dev /devshut
+#/sbin/udevd --daemon
+#udevadm trigger --action=add
+#mkdir /dev/pts
+#mount -t devpts none /dev/pts
+hostname -F /etc/hostname
+
+#mknod -m 640 /dev/xconsole p
+#chown root:adm /dev/xconsole
+
+#/sbin/klogd -c 1 -x
+#/usr/sbin/syslogd 
+
+#/etc/init.d/xencommons start
+
+#echo 9 > /proc/sysrq-trigger 
+#cd /root
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HOME=/root
+exec /bin/bash
+
+#Make skript executable
+sudo chmod 0777 init.sh
+############end script###################################################
+
+cd..
+
+
+#Creating the XEN Mini-OS to test a very simple guest
+
+cd xen/extras/mini-os
+make
+
+#Create configuration file
+
+nano nano build/mini-os.config
+
+#Add:
+kernel = "/boot/mini-os.img"
+memory = 128
+name = "Mini-OS"
+vcpus = 1
+serial="pty"
+disk = [ 'phy:/dev/vg0/mini-os,xvda,w' ]
+vif = ['bridge=br0']
+
+
+#Copy files to SD-Card:
+
+sudo cp build/boot.scr /media/${PARTITION_NAME}/boot/
+sudo cp linux-sunxi/arch/arm/boot/zImage /media/${PARTITION_NAME}/boot/
+sudo cp xen/xen/xen /media/${PARTITION_NAME}/boot/
+sudo cp linux-sunxi/arch/arm/boot/dts/sun7i-a20-cubietruck.dtb /media/${PARTITION_NAME}/boot/
+sudo cp build/init.sh /media/${PARTITION_NAME}/boot/
+sudo cp xen/extras/mini-os/mini-os /media/${PARTITION_NAME}/boot/mini-os.img
+sudo cp build/mini-os.config /media/${PARTITION_NAME}/boot/
+
+sync
+sudo umount /dev/${SD_CARD}
+
+
+#Now dom0 is bootable all bext steps are provided on the target
+
+#Setting up the network
+ifup eth0
+ip addr show dev eth0
+
+/etc/init.d/networktar -pczf DOM0_image.tar.gz .*ing restart
+
+#Install nano
+apt-get install nano
+
+#Install openssh 
+apt-get install openssh-server
+
+#Go to the root directory and configure the openssh
+cd
+mkdir .ssh
+touch .ssh/authorized_keys
+
+#Setup new root password
+sudo passwd
+
+#Start ssh
+sudo /etc/init.d/ssh start
+
+#Connect via ssh 
+ssh root@${IP_ADRESSE}
+
+
+
+#Install XEN toolstack
+
+apt-get install update-manager-core python-apt
+
+#Get the newest release (takes loooooong time!!! How about a cup of coffee?)
+do-release-upgrade -d
+ 
+#If problems occur while releasupgrade execute the following command
+apt-get -f install
+
+dpkg-divert --local --rename --add /sbin/initctl
+ln -s /bin/true /sbin/initctl
+
+#Install the xen toolstack
+apt-get install xen-utils-4.4
+
+#Test the toolstack
+xl list
+
+#Install LVM for the virtual disks
+apt-get install lvm2
+
+#Select the physical volume/partition where you want to install the guest systems.
+#Warning!!! All data on this physical volume/partition is lost
+# ${DEVICE_NAME}= mmcblk0p2
+pvcreate /dev/${DEVICE_NAME}
+
+#Create a volume group
+vgcreate vg0 /dev/${DEVICE_NAME}
+
+
+#lvcreate depents on the guest system. The first can be used for the mini-os
+lvcreate -L 8M vg0 --name mini-os
+lvcreate -L 4G vg0 --name ${GUEST_NAME} #for bigger guests
+
+#Start the guest(Great moment)
+xl create mini-os.config
+
+#Show the running guest
+xl list
+
+#Get a console of the running guest
+xm console ${GUEST_NAME}
+
+
+
+
+
+#References:
+http://wiki.xenproject.org/wiki/Xen_ARM_with_Virtualization_Extensions
+http://wiki.xen.org/wiki/Xen_ARM_with_Virtualization_Extensions/Allwinner
+
+http://linux-sunxi.org
+http://linux-sunxi.org/Toolchain
+http://linux-sunxi.org/Manual_build_howto
+http://linux-sunxi.org/U-Boot#Compilation
+http://linux-sunxi.org/Linux_Kernel
+
+https://wiki.linaro.org/Platform/DevPlatform/Rootfs
+
+Linaro Quantal image
+http://linux-sunxi.org/More-images
+
+http://openmirage.org/wiki/xen-on-cubieboard2
+https://wiki.linaro.org/LEG/Engineering/Virtualization/Xen_ARM_Guide
+
+http://siva2009.wordpress.com/2010/08/26/how-to-create-lvm-using-pvcreate-vgcreate-lvcreate-and-lvextend-commands/

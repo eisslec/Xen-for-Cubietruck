@@ -1,0 +1,8 @@
+setenv bootargs console=tty0 console=ttyS0,115200 earkyprintk=vga,ttyS0,115200 disp.screen0_output_type=4 disp.screen0_output_mode=1680x1050 root=/dev/mmcblk0p2 initcall_debug rootwait panic=10
+
+env set fdt_high ffffffff
+
+fatload mmc 0 0x43000000 script.bin
+fatload mmc 0 0x46000000 uImage
+fatload mmc 0 0x49000000 sun7i-a20-cubietruck.dtb
+bootm 0x46000000 - 0x49000000
