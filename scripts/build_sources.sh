@@ -13,6 +13,7 @@ else
     cd src
 fi
 
+
 #Download the Uboot repository
 echo Download and build the Uboot repository
 
@@ -28,10 +29,7 @@ fi
 make CROSS_COMPILE=arm-linux-gnueabihf- ${TARGET}
 make CROSS_COMPILE=arm-linux-gnueabihf- -j 4
 
-cp spl/sunxi-spl.bin ../../build/temp/
-cp u-boot.img ../../build/temp/
 cd ..
-
 
 
 #Download the kernel repository
@@ -48,23 +46,12 @@ fi
 #Build the kernel and copy the files to the build/temp folder
 echo Build Linux kernel
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=output modules_install
-cp ../configuration_files/multi_v7_defconfig arch/arm/configs/
+cp ../../configuration_files/multi_v7_defconfig arch/arm/configs/
 
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- multi_v7_defconfig
 make -j4 ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=output modules_install
 
-cp arch/arm/boot/zImage ../../build/temp/
-cp arch/arm/boot/dts/sun7i-a20-cubietruck.dtb ../../build/temp/
-
-#Check if already a old module is available
-if [ ! -d ../../build/modules]; then
-    rm -r ../../build/modules/*
-else
-    mkdir ../../build/modules
-fi
-
-cp -r output/lib/modules/* ../../build/temp/modules/
 cd ..
 
 
@@ -80,14 +67,12 @@ else
 fi
 
 #Build Xen
-
-make dist-xen XEN_TARGET_ARCH=arm32 CROSS_COMPILE=arm-linux-gnueabihf- CONFIG_EARLY_PRINTK=sun7i
-cp xen/xen ../../build/temp/
+make dist-xen XEN_TARGET_ARCH=arm32 CROSS_COMPILE=arm-linux-gnueabihf-
 
 #Build Mini-OS guest demonstration
 cd extras/mini-os/
 make
-cp mini-os ../../../../build/temp/mini-os.img
+
 cd ../../../
 
 #Go to the main project dir

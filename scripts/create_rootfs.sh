@@ -3,8 +3,8 @@
 #Last change: 06.06.14
 # Create and configure the rootfilesystems
 
-FILESYSTEM = linaro-saucy-developer-20140414-653
-FILESYSTEM_LINK = https://snapshots.linaro.org/ubuntu/images/developer/latest/linaro-saucy-developer-20140414-653.tar.gz
+FILESYSTEM=linaro-saucy-nano-20140126-627
+FILESYSTEM_LINK=https://releases.linaro.org/14.01/ubuntu/saucy-images/nano/linaro-saucy-nano-20140126-627.tar.gz
 
 #FILESYSTEM_LINK  https://releases.linaro.org/13.04/ubuntu/quantal-images/nano/linaro-quantal-nano-20130422-342.tar.gz
 
@@ -13,26 +13,45 @@ cd build/temp
 
 
 #Download the filesystem
-wget $FILESYSTEM_LINK
+if [ ! -f $FILESYSTEM".tar.gz" ]; then
+    wget $FILESYSTEM_LINK
+fi
 
-tar xfvz ${FILESYSTEM} -C ./
+tar xfvz $FILESYSTEM".tar.gz"
 
 
-#Configure the filesystem
-cp ../configuration_files/fstab binary/etc/fstab
-cp ../configuration_files/resolve.conf binary/etc/resolve.conf
-cp ../configuration_files/interfaces binary/etc/network/interfaces
-cp ../configuration_files/init.sh binary/boot/init.sh
-cp ../configuration_files/dom0_configure.sh binary/boot/dom0_configure.sh
-cp mini-os.config binary/boot/
-cp mini-os.img binary/boot/
-cp zImage binary/boot/
-cp sun7i-a20-cubietruck.dtb binary/boot/
+cp $SOURCE_DIR/linux-sunxi/arch/arm/boot/zImage binary/boot/zImage
+cp $SOURCE_DIR/linux-sunxi/arch/arm/boot/dts/sun7i-a20-cubietruck.dtb binary/boot/sun7i-a20-cubietruck.dtb
+
+#Check if already a old module is available and copy the new module
+if [ ! -d binary/lib/modules ]; then
+    mkdir binary/lib/modules
+    cp -r $SOURCE_DIR/linux-sunxi/output/lib/modules/* binary/lib/modules
+else
+    rm -r binary/lib/modules/*
+    cp -r $SOURCE_DIR/linux-sunxi/output/lib/modules/* binary/lib/modules
+fi
+
+cp $SOURCE_DIR/xen/xen/xen binary/boot/
+
+
+
+cp $SOURCE_DIR/xen/extras/mini-os/mini-os binary/boot/mini-os.img
+
+#Copy files to hwpackage
+cp $CONFIGURATION_DIR/fstab binary/etc/fstab
+cp $CONFIGURATION_DIR/resolv.conf binary/etc/resolve.conf
+cp $CONFIGURATION_DIR/interfaces binary/etc/network/interfaces
+
+cp $CONFIGURATION_DIR/init.sh binary/boot/init.sh
+cp $CONFIGURATION_DIR/dom0_configure.sh binary/boot/dom0_configure.sh
+cp $CONFIGURATION_DIR/mini-os.config binary/boot/mini-os.config
 
 #Compile the bootscript
-mkimage -A arm -T script -d ../configuration_files/boot.xen binary/boot.scr
+mkimage -A arm -T script -d $CONFIGURATION_DIR/boot.xen binary/boot/boot.scr
 
-cd binary
-#Packing the image into a tar.gz
-sudo tar -pczf ../DOM0_image.tar.gz *
-cd ..
+#Pack the filesystem
+tar cfvz ../images/dom0.tar.gz  binary/
+
+cd ../../
+

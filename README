@@ -1,0 +1,26 @@
+Author: Christian Eissler
+
+About the project
+===================================
+Xen-for-Cubietruck should help to
+
+
+Quick Start Guide
+====================================
+
+Starting the build skript
+./build.sh
+
+
+#Copy dom0 to the sdcard
+sudo tar xfvz $PROJECT_DIR/build/images/dom0.tar.gz -C /media/fs
+
+sudo mv /media/$ROOT_FS/binary/* /media/$ROOT_FS/
+sudo rm -r /media/$ROOT_FS/binary
+
+
+sudo dd if=$PROJECT_DIR/src/u-boot-sunxi/spl/sunxi-spl.bin of=/dev/$DEVICE bs=1024 seek=8
+sudo dd if=$PROJECT_DIR/src/u-boot-sunxi/u-boot.img of=/dev/$DEVICE bs=1024 seek=40
+
+
+
