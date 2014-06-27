@@ -96,6 +96,7 @@ grep sunxi boards.cfg | awk '{print $7}'
 
 #Build the Bootloader(TARGET = Cubietruck):
 #For Booting with sdcard
+make CROSS_COMPILE=arm-linux-gnueabihf- ${TARGET}_config
 make TARGET CROSS_COMPILE=arm-linux-gnueabihf- -j4
 
 #Write the Bootloader to the SD card(In my case: $SD_CARD=/dev/sdb):
@@ -145,6 +146,7 @@ CONFIG_VIRT_DRIVERS=y
 CONFIG_XEN_BALLOON=y
 CONFIG_XEN_SCRUB_PAGES=y
 CONFIG_XEN_DEV_EVTCHN=y
+
 CONFIG_XEN_BACKEND=y
 CONFIG_XENFS=y
 CONFIG_XEN_COMPAT_XENFS=y
@@ -308,7 +310,7 @@ mount -t sysfs none /sys
 hostname -F /etc/hostname
 
 #mknod -m 640 /dev/xconsole p
-#chown root:adm /dev/xconsole
+#chown root:adm /dev/xconsoleallgemein
 
 #/sbin/klogd -c 1 -x
 #/usr/sbin/syslogd 
@@ -361,7 +363,7 @@ sync
 sudo umount /dev/${SD_CARD}
 
 
-#Now dom0 is bootable all bext steps are provided on the target
+#Now dom0 is bootable all futher steps are provided on the target
 
 #Setting up the network
 ifup eth0

@@ -1,6 +1,6 @@
 #!/bin/bash
 #Author: Christian Eissler
-#Last change: 06.06.14
+#Last change: 26.06.14
 
 #Skript to create a XEN-Demonstation.
 #Skript building XEN, creating a compatible dom0 kernel which can also be used for domU
@@ -15,9 +15,26 @@ mkdir build/temp
 mkdir build/images
 
 #Read the configuration
-echo Read configuration
+echo -----------------------Read configuration----------------------------------------
 
-#TODO
+export domU_count=0
+export domU_list=0
+export dom0=0
+
+#Check the skript parameters
+for i in "$@"
+do
+    case $i in
+        --add_domU=*)
+            domU_list[domU_count]=`echo $i | cut -d '=' -f 2`
+            ((domU_count++))
+        ;;
+         --dom0=*)
+            dom0=`echo $i | cut -d '=' -f 2`
+        ;;
+    esac
+
+done
 
 echo ------------------------Installing development tools--------------------------------
 
@@ -34,10 +51,8 @@ echo ------------------------Download Rootfs and Deploy files-------------------
 source ./scripts/create_rootfs.sh
 
 
+echo -----------------------Create SD-Card image ------------------------------------------------
+
+source ./scripts/create_sd_card_image.sh
+
 exit 0
-
-
-
-#Copy u-boot binaries
-#cp ../src/u-boot-sunxi/spl/sunxi-spl.bin binary/boot/sunxi-spl.bin
-#cp ../src/u-boot-sunxi/u-boot.img hwpack/bootloader/u-boot.img

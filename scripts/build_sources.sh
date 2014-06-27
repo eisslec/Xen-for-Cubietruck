@@ -1,6 +1,6 @@
 #!/bin/bash
 #Author: Christian Eissler
-#Last change: 06.06.14
+#Last change: 26.06.14
 # Clone the needed repositories and build the applications
 
 TARGET=Cubietruck_config
@@ -27,7 +27,7 @@ fi
 
 #Build U-Boot and copy the files to the build/temp folder
 make CROSS_COMPILE=arm-linux-gnueabihf- ${TARGET}
-make CROSS_COMPILE=arm-linux-gnueabihf- -j 4
+make CROSS_COMPILE=arm-linux-gnueabihf- -j4
 
 cd ..
 
@@ -45,7 +45,6 @@ fi
 
 #Build the kernel and copy the files to the build/temp folder
 echo Build Linux kernel
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=output modules_install
 cp ../../configuration_files/multi_v7_defconfig arch/arm/configs/
 
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- multi_v7_defconfig

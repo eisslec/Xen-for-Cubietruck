@@ -8,23 +8,40 @@ The benefit of the project is that the developer can start rapidly with working 
 In future the project should also create grapical guest but therefore a lot of work on the sunxi-devel
 kernel is nessescery to port the videodrivers(hdmi, lcd, display) on a xen compatible kernel.
 
-GUI Virtualisation on Cubietruck would be a very cool feature and I hope I can inspire some kernel developers
+GUI Virtualisation on Cubietruck would be a very cool feature and I hope I can inspire some sunxi kernel developers
 to work on a port for the sunxi videodrivers on a xen compatible kernel.
 
 
 Quick Start Guide
 ====================================
 
-Starting the build skript
-./build.sh
+There are 4 different linaro filesystems which can be used for dom0 and domU(Guest) systems.
+*linaro_nano
+*linaro_developer
+*linaro_desktop
+
+Command parameters
+--add_domU=$FILESYSTEM
+--dom0=$FILESYSTEM
 
 
-#Copy dom0 to the sdcard
-sudo tar xfvz $PROJECT_DIR/build/images/dom0.tar.gz -C /media/fs
+Build a image with a dom0(linaro_developer) and 2 domUs with a linaro_developer and linaro_nano filesystem
+./build.sh --dom0=linaro_developer --add_domU=linaro_nano --add_domU=linaro_developer
 
-sudo mv /media/$ROOT_FS/binary/* /media/$ROOT_FS/
-sudo rm -r /media/$ROOT_FS/binary
+-Insert SD_Card and create a partiton table(Remaining Data will be lost!!!)
+
+-The dom0_full.img image contain the dom0 and all domUs combined in a image.
+ It's also possible to copy the dom0 and domUs seperatly (For example a harddisk can be used for the guests).
+ The images are located in $PROJECT_DIR/build/images
+sudo dd if=$PROJECT_DIR/build/images/dom0_full.img of=/dev/$DEVICE_NAME
+
+-Write the UBoot to the sdcard
+sudo dd if=$PROJECT_DIR/src/u-boot-sunxi/spl/sunxi-spl.bin of=/dev/$DEVICE_NAME bs=1024 seek=8
+sudo dd if=$PROJECT_DIR/src/u-boot-sunxi/u-boot.img of=/dev/$DEVICE_NAME bs=1024 seek=40
 
 
-sudo dd if=$PROJECT_DIR/src/u-boot-sunxi/spl/sunxi-spl.bin of=/dev/$DEVICE bs=1024 seek=8
-sudo dd if=$PROJECT_DIR/src/u-boot-sunxi/u-boot.img of=/dev/$DEVICE bs=1024 seek=40
+#####################Starting the Cubietruck with the SD-Card##############################################
+
+-Starting the script to configure the dom0
+chmod 0777 dom0_configure.sh
+./dom0_configure.sh
